@@ -103,7 +103,49 @@ cd BLT-Preflight
 pip install -r requirements.txt
 ```
 
+
 ## Usage
+
+### Running the Engine
+
+The BLT Preflight Advisory Engine is built on the Python standard library and requires **no external dependencies** for core functionality. Simply run:
+
+```bash
+python3 src/blt_preflight.py
+```
+
+### Installing Optional & Development Dependencies
+
+A single `requirements.txt` is provided with clearly separated sections:
+
+| Section | Purpose | Required? |
+|---|---|---|
+| Core | Standard library only — zero deps | ✅ Always |
+| Optional | `requests`, `pyyaml` for enhanced features | ⚙️ Optional |
+| Development & Testing | `pytest`, `pytest-sugar` for contributors | 🧪 Dev only |
+
+To install **all** dependencies (optional + dev tools) at once:
+
+```bash
+pip install -r requirements.txt
+```
+
+> **Note for contributors:** `pytest-sugar` enhances the pytest output with a progress bar and cleaner reporting — it does not affect test logic or results.
+
+### Running Tests
+
+Once dev dependencies are installed:
+
+```bash
+pytest
+```
+
+pytest-sugar will automatically activate and provide a cleaner test output experience.
+
+---
+
+> **Core Philosophy:** The engine's core remains strictly standard-library only.  
+> External packages in `requirements.txt` are strictly opt-in enhancements and developer tooling — they never touch the engine's execution path.
 
 ### CLI Commands
 
