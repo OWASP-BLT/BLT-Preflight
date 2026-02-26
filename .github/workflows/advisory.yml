@@ -40,60 +40,10 @@ jobs:
           retries: 3
           retry-exempt-status-codes: 400,401,404
           script: |
-            // Helper function for exponential backoff retry with rate limit monitoring
-            async function retryWithBackoff(fn, maxRetries = 3, initialDelay = 2000) {
-              let lastError;
-              
-              for (let attempt = 1; attempt <= maxRetries; attempt++) {
-                try {
-                  // Check rate limit before making API call
-                  const { data: rateLimit } = await github.rest.rateLimit.get();
-                  const remaining = rateLimit.rate.remaining;
-                  const resetTime = new Date(rateLimit.rate.reset * 1000);
-                  
-                  console.log(`Rate limit status: ${remaining} requests remaining, resets at ${resetTime}`);
-                  
-                  // If rate limit is low, wait until reset
-                  if (remaining < 10) {
-                    const waitTime = resetTime.getTime() - Date.now();
-                    if (waitTime > 0) {
-                      console.log(`Rate limit low. Waiting ${Math.ceil(waitTime / 1000)}s until reset...`);
-                      await new Promise(resolve => setTimeout(resolve, waitTime + 1000));
-                    }
-                  }
-                  
-                  // Execute the function
-                  return await fn();
-                  
-                } catch (error) {
-                  lastError = error;
-                  
-                  // Log error details with specific information
-                  const isRateLimitError = error.status === 403 && 
-                    (error.message.includes('rate limit') || error.message.includes('API rate limit'));
-                  
-                  if (isRateLimitError) {
-                    console.error(`Attempt ${attempt}/${maxRetries} failed: Rate limit exceeded`);
-                  } else {
-                    console.error(`Attempt ${attempt}/${maxRetries} failed:`, error.message);
-                  }
-                  
-                  if (attempt < maxRetries) {
-                    const delay = initialDelay * Math.pow(2, attempt - 1);
-                    console.log(`Retrying in ${delay}ms...`);
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                  } else {
-                    console.error('All retry attempts exhausted');
-                    throw error;
-                  }
-                }
-              }
-              
-              throw lastError;
-            }
-            
+            const { retryWithBackoff } = require('./.github/scripts/retry-helper.js');
+
             // Get PR files with retry logic
-            const files = await retryWithBackoff(async () => {
+            const files = await retryWithBackoff(github, async () => {
               const { data } = await github.rest.pulls.listFiles({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -101,7 +51,7 @@ jobs:
               });
               return data;
             });
-            
+
             return files.map(f => f.filename).join(',');
 
       - name: Get PR labels
@@ -152,62 +102,11 @@ jobs:
           retry-exempt-status-codes: 400,401,404
           script: |
             const fs = require('fs');
+            const { retryWithBackoff } = require('./.github/scripts/retry-helper.js');
             const advisory = fs.readFileSync('/tmp/advisory.md', 'utf8');
 
-            // Helper function for exponential backoff retry with rate limit monitoring
-            async function retryWithBackoff(fn, maxRetries = 3, initialDelay = 2000) {
-              let lastError;
-              
-              for (let attempt = 1; attempt <= maxRetries; attempt++) {
-                try {
-                  // Check rate limit before making API call
-                  const { data: rateLimit } = await github.rest.rateLimit.get();
-                  const remaining = rateLimit.rate.remaining;
-                  const resetTime = new Date(rateLimit.rate.reset * 1000);
-                  
-                  console.log(`Rate limit status: ${remaining} requests remaining, resets at ${resetTime}`);
-                  
-                  // If rate limit is low, wait until reset
-                  if (remaining < 10) {
-                    const waitTime = resetTime.getTime() - Date.now();
-                    if (waitTime > 0) {
-                      console.log(`Rate limit low. Waiting ${Math.ceil(waitTime / 1000)}s until reset...`);
-                      await new Promise(resolve => setTimeout(resolve, waitTime + 1000));
-                    }
-                  }
-                  
-                  // Execute the function
-                  return await fn();
-                  
-                } catch (error) {
-                  lastError = error;
-                  
-                  // Log error details with specific information
-                  const isRateLimitError = error.status === 403 && 
-                    (error.message.includes('rate limit') || error.message.includes('API rate limit'));
-                  
-                  if (isRateLimitError) {
-                    console.error(`Attempt ${attempt}/${maxRetries} failed: Rate limit exceeded`);
-                  } else {
-                    console.error(`Attempt ${attempt}/${maxRetries} failed:`, error.message);
-                  }
-                  
-                  if (attempt < maxRetries) {
-                    const delay = initialDelay * Math.pow(2, attempt - 1);
-                    console.log(`Retrying in ${delay}ms...`);
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                  } else {
-                    console.error('All retry attempts exhausted');
-                    throw error;
-                  }
-                }
-              }
-              
-              throw lastError;
-            }
-
             // Check if we already posted an advisory (with retry)
-            const comments = await retryWithBackoff(async () => {
+            const comments = await retryWithBackoff(github, async () => {
               const { data } = await github.rest.issues.listComments({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -223,7 +122,7 @@ jobs:
 
             if (botComment) {
               // Update existing comment (with retry)
-              await retryWithBackoff(async () => {
+              await retryWithBackoff(github, async () => {
                 await github.rest.issues.updateComment({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
@@ -234,7 +133,7 @@ jobs:
               });
             } else {
               // Create new comment (with retry)
-              await retryWithBackoff(async () => {
+              await retryWithBackoff(github, async () => {
                 await github.rest.issues.createComment({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
@@ -253,62 +152,11 @@ jobs:
           retry-exempt-status-codes: 400,401,404
           script: |
             const fs = require('fs');
+            const { retryWithBackoff } = require('./.github/scripts/retry-helper.js');
             const advisory = fs.readFileSync('/tmp/advisory.md', 'utf8');
 
-            // Helper function for exponential backoff retry with rate limit monitoring
-            async function retryWithBackoff(fn, maxRetries = 3, initialDelay = 2000) {
-              let lastError;
-              
-              for (let attempt = 1; attempt <= maxRetries; attempt++) {
-                try {
-                  // Check rate limit before making API call
-                  const { data: rateLimit } = await github.rest.rateLimit.get();
-                  const remaining = rateLimit.rate.remaining;
-                  const resetTime = new Date(rateLimit.rate.reset * 1000);
-                  
-                  console.log(`Rate limit status: ${remaining} requests remaining, resets at ${resetTime}`);
-                  
-                  // If rate limit is low, wait until reset
-                  if (remaining < 10) {
-                    const waitTime = resetTime.getTime() - Date.now();
-                    if (waitTime > 0) {
-                      console.log(`Rate limit low. Waiting ${Math.ceil(waitTime / 1000)}s until reset...`);
-                      await new Promise(resolve => setTimeout(resolve, waitTime + 1000));
-                    }
-                  }
-                  
-                  // Execute the function
-                  return await fn();
-                  
-                } catch (error) {
-                  lastError = error;
-                  
-                  // Log error details with specific information
-                  const isRateLimitError = error.status === 403 && 
-                    (error.message.includes('rate limit') || error.message.includes('API rate limit'));
-                  
-                  if (isRateLimitError) {
-                    console.error(`Attempt ${attempt}/${maxRetries} failed: Rate limit exceeded`);
-                  } else {
-                    console.error(`Attempt ${attempt}/${maxRetries} failed:`, error.message);
-                  }
-                  
-                  if (attempt < maxRetries) {
-                    const delay = initialDelay * Math.pow(2, attempt - 1);
-                    console.log(`Retrying in ${delay}ms...`);
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                  } else {
-                    console.error('All retry attempts exhausted');
-                    throw error;
-                  }
-                }
-              }
-              
-              throw lastError;
-            }
-
             // Create advisory comment on issue (with retry)
-            await retryWithBackoff(async () => {
+            await retryWithBackoff(github, async () => {
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
