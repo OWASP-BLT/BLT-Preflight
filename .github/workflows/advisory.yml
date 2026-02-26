@@ -68,11 +68,15 @@ jobs:
                 } catch (error) {
                   lastError = error;
                   
-                  // Check if it's a rate limit error
-                  const isRateLimit = error.status === 403 && 
+                  // Log error details with specific information
+                  const isRateLimitError = error.status === 403 && 
                     (error.message.includes('rate limit') || error.message.includes('API rate limit'));
                   
-                  console.error(`Attempt ${attempt}/${maxRetries} failed:`, error.message);
+                  if (isRateLimitError) {
+                    console.error(`Attempt ${attempt}/${maxRetries} failed: Rate limit exceeded`);
+                  } else {
+                    console.error(`Attempt ${attempt}/${maxRetries} failed:`, error.message);
+                  }
                   
                   if (attempt < maxRetries) {
                     const delay = initialDelay * Math.pow(2, attempt - 1);
@@ -178,11 +182,15 @@ jobs:
                 } catch (error) {
                   lastError = error;
                   
-                  // Check if it's a rate limit error
-                  const isRateLimit = error.status === 403 && 
+                  // Log error details with specific information
+                  const isRateLimitError = error.status === 403 && 
                     (error.message.includes('rate limit') || error.message.includes('API rate limit'));
                   
-                  console.error(`Attempt ${attempt}/${maxRetries} failed:`, error.message);
+                  if (isRateLimitError) {
+                    console.error(`Attempt ${attempt}/${maxRetries} failed: Rate limit exceeded`);
+                  } else {
+                    console.error(`Attempt ${attempt}/${maxRetries} failed:`, error.message);
+                  }
                   
                   if (attempt < maxRetries) {
                     const delay = initialDelay * Math.pow(2, attempt - 1);
@@ -275,11 +283,15 @@ jobs:
                 } catch (error) {
                   lastError = error;
                   
-                  // Check if it's a rate limit error
-                  const isRateLimit = error.status === 403 && 
+                  // Log error details with specific information
+                  const isRateLimitError = error.status === 403 && 
                     (error.message.includes('rate limit') || error.message.includes('API rate limit'));
                   
-                  console.error(`Attempt ${attempt}/${maxRetries} failed:`, error.message);
+                  if (isRateLimitError) {
+                    console.error(`Attempt ${attempt}/${maxRetries} failed: Rate limit exceeded`);
+                  } else {
+                    console.error(`Attempt ${attempt}/${maxRetries} failed:`, error.message);
+                  }
                   
                   if (attempt < maxRetries) {
                     const delay = initialDelay * Math.pow(2, attempt - 1);
