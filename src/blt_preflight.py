@@ -94,16 +94,14 @@ def cmd_github(args):
 def cmd_feedback(args):
     """Record feedback on advisory."""
     engine = AdvisoryEngine(args.config)
-    
     helpful = args.helpful.lower() in ['yes', 'y', 'true', '1']
-    
+    # args.pattern should now be the pattern_key, not the title
     engine.record_feedback(
-        advice_title=args.pattern,
+        pattern_key=args.pattern,
         helpful=helpful,
         comments=args.comments or ""
     )
-    
-    print(f"Feedback recorded for pattern: {args.pattern}")
+    print(f"Feedback recorded for pattern_key: {args.pattern}")
 
 
 def cmd_intent(args):
@@ -147,7 +145,7 @@ Examples:
   blt-preflight github
   
   # Record feedback
-  blt-preflight feedback --pattern "Security Advisory: Authentication" --helpful yes
+  blt-preflight feedback --pattern authentication --helpful yes
   
   # Generate dashboard
   blt-preflight dashboard --output docs/MAINTAINER_DASHBOARD.md
