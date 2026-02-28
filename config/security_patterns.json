@@ -5,10 +5,20 @@
         "**/auth/**",
         "**/login/**",
         "**/password/**",
-        "**/session/**"
+        "**/session/**",
+        "**/oauth/**",
+        "**/jwt/**",
+        "**/2fa/**",
+        "**/mfa/**"
       ],
       "severity": "critical",
-      "guidance": "Authentication changes require careful security review. Ensure proper password hashing, session management, and protection against brute force attacks."
+      "guidance": "🔐 Authentication Security (CWE-287, CWE-306)\n\n❌ Common Mistakes:\n• Storing passwords in plaintext or with weak hashing (MD5, SHA1)\n• Missing rate limiting on login endpoints (allows brute force)\n• Weak session management (predictable session IDs)\n• No multi-factor authentication support\n• Insufficient password complexity requirements\n• Missing account lockout after failed attempts\n\n✅ Required Practices:\n• Use bcrypt (cost 12+), Argon2id, or scrypt for password hashing\n• Implement rate limiting: max 5 attempts per 15 minutes\n• Generate cryptographically secure session tokens (secrets.token_urlsafe())\n• Set secure cookie flags: HttpOnly, Secure, SameSite=Strict\n• Require strong passwords: min 12 chars, mix of character types\n• Implement MFA for privileged accounts\n• Use constant-time comparison (secrets.compare_digest())\n\nPython Example:\n```python\n# ❌ WRONG\nimport hashlib\nhashed = hashlib.md5(password.encode()).hexdigest()  # Insecure!\n\n# ✅ CORRECT\nimport bcrypt\nhashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=12))\n```\n\n📚 References:\n• https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html\n• https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html\n• https://cwe.mitre.org/data/definitions/287.html",
+      "references": [
+        "https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html",
+        "https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html",
+        "https://cwe.mitre.org/data/definitions/287.html",
+        "https://cwe.mitre.org/data/definitions/306.html"
+      ]
     },
     "api_keys": {
       "patterns": [
@@ -16,91 +26,145 @@
         "**/*secret*",
         "**/*token*",
         "**/*.env*",
-        "**/config/**"
+        "**/config/**",
+        "**/.env*",
+        "**/credentials*"
       ],
       "severity": "critical",
-      "guidance": "Never commit API keys, secrets, or tokens to version control. Use environment variables or a secrets manager."
+      "guidance": "🔑 Secrets Management (CWE-798, CWE-259)\n\n❌ Common Mistakes:\n• Committing secrets to version control (.env files, hardcoded keys)\n• Storing secrets in plaintext configuration files\n• Logging API keys or tokens\n• Sharing secrets via insecure channels (email, Slack)\n• Using weak or default secrets\n\n✅ Required Practices:\n• NEVER commit secrets to git (add to .gitignore)\n• Use environment variables or secrets managers (AWS Secrets Manager, HashiCorp Vault)\n• Rotate secrets regularly\n• Use different secrets for dev/staging/production\n• Implement least-privilege access (scope tokens appropriately)\n• Audit secret access logs\n• Scan commits for leaked secrets (git-secrets, truffleHog)\n\nPython Example:\n```python\n# ❌ WRONG\nAPI_KEY = \"sk_live_1234567890abcdef\"  # Hardcoded!\n\n# ✅ CORRECT\nimport os\nAPI_KEY = os.environ.get('API_KEY')\nif not API_KEY:\n    raise ValueError('API_KEY environment variable not set')\n```\n\n📚 References:\n• https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html\n• https://cwe.mitre.org/data/definitions/798.html\n• https://cwe.mitre.org/data/definitions/259.html",
+      "references": [
+        "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html",
+        "https://cwe.mitre.org/data/definitions/798.html",
+        "https://cwe.mitre.org/data/definitions/259.html"
+      ]
     },
     "database": {
       "patterns": [
         "**/*db*",
         "**/*database*",
         "**/migrations/**",
-        "**/*sql*"
+        "**/*sql*",
+        "**/models/**",
+        "**/queries/**",
+        "**/orm/**"
       ],
-      "severity": "warning",
-      "guidance": "Database changes should include security considerations like SQL injection prevention, proper access controls, and data encryption."
+      "severity": "high",
+      "guidance": "🗄️ Database Security (CWE-89, CWE-284)\n\n❌ Common Mistakes:\n• SQL injection via string concatenation\n• Overly permissive database user privileges\n• Unencrypted sensitive data at rest\n• Missing database access controls\n• Exposing database errors to users\n\n✅ Required Practices:\n• ALWAYS use parameterized queries or ORM methods\n• Follow principle of least privilege for DB users\n• Encrypt sensitive columns (PII, financial data)\n• Use separate read-only users for reporting\n• Implement row-level security where appropriate\n• Never expose raw DB errors (log internally only)\n• Enable audit logging for sensitive tables\n\nPython/Django Example:\n```python\n# ❌ WRONG - SQL Injection vulnerability\ndef get_user(username):\n    query = f\"SELECT * FROM users WHERE username = '{username}'\"\n    cursor.execute(query)  # UNSAFE!\n\n# ✅ CORRECT - Parameterized query\ndef get_user(username):\n    query = \"SELECT * FROM users WHERE username = %s\"\n    cursor.execute(query, [username])  # Safe\n\n# ✅ CORRECT - Django ORM (automatically parameterized)\nUser.objects.filter(username=username)\n```\n\n📚 References:\n• https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html\n• https://cheatsheetseries.owasp.org/cheatsheets/Database_Security_Cheat_Sheet.html\n• https://cwe.mitre.org/data/definitions/89.html",
+      "references": [
+        "https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html",
+        "https://cheatsheetseries.owasp.org/cheatsheets/Database_Security_Cheat_Sheet.html",
+        "https://cwe.mitre.org/data/definitions/89.html",
+        "https://cwe.mitre.org/data/definitions/284.html"
+      ]
     },
     "encryption": {
       "patterns": [
         "**/*crypto*",
         "**/*encrypt*",
         "**/*hash*",
-        "**/*cipher*"
+        "**/*cipher*",
+        "**/*ssl*",
+        "**/*tls*",
+        "**/*cert*",
+        "**/requests*",
+        "**/urllib*"
       ],
       "severity": "critical",
-      "guidance": "Use established cryptographic libraries and avoid creating custom encryption. Ensure strong key lengths and proper key management."
+      "guidance": "🔒 Cryptography & TLS Security (CWE-295, CWE-326, CWE-327)\n\n⚠️ Based on real vulnerability fix: BLT Core #5381 (CWE-295 certificate validation bypass)\n\n❌ Common Mistakes:\n• Disabling SSL certificate verification (verify=False, ssl.CERT_NONE)\n• Using weak algorithms (DES, RC4, MD5 for crypto)\n• Hardcoding encryption keys\n• Rolling custom crypto implementations\n• Using deprecated TLS versions (< 1.2)\n• Accepting self-signed certificates in production\n\n✅ Required Practices:\n• ALWAYS enable certificate verification in production\n• Use TLS 1.2+ (prefer TLS 1.3)\n• Use AES-256-GCM for symmetric encryption\n• Use RSA 2048+ or ECC (P-256+) for asymmetric\n• Store keys in secure vaults (never in code)\n• Use vetted libraries: cryptography (Python), crypto (Node.js)\n• Generate secure random: secrets module (Python), crypto.randomBytes (Node.js)\n\nPython Example:\n```python\n# ❌ WRONG - Disables certificate validation (CWE-295)\nimport requests\nresponse = requests.get('https://api.example.com', verify=False)  # UNSAFE!\n\n# ✅ CORRECT - Enables certificate validation\nimport requests\nresponse = requests.get('https://api.example.com', verify=True)\n# Or provide CA bundle:\nresponse = requests.get('https://api.example.com', verify='/path/to/ca-bundle.crt')\n```\n\n📚 References:\n• https://cheatsheetseries.owasp.org/cheatsheets/Transport_Layer_Protection_Cheat_Sheet.html\n• https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html\n• https://cwe.mitre.org/data/definitions/295.html\n• https://github.com/OWASP-BLT/BLT/pull/5381",
+      "references": [
+        "https://cheatsheetseries.owasp.org/cheatsheets/Transport_Layer_Protection_Cheat_Sheet.html",
+        "https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html",
+        "https://cwe.mitre.org/data/definitions/295.html",
+        "https://cwe.mitre.org/data/definitions/326.html",
+        "https://cwe.mitre.org/data/definitions/327.html",
+        "https://github.com/OWASP-BLT/BLT/pull/5381"
+      ]
     },
     "file_upload": {
       "patterns": [
         "**/*upload*",
         "**/*file*",
-        "**/storage/**"
+        "**/storage/**",
+        "**/media/**",
+        "**/attachments/**"
       ],
-      "severity": "warning",
-      "guidance": "File upload functionality requires validation of file types, size limits, and protection against malicious files."
+      "severity": "high",
+      "guidance": "📁 File Upload Security (CWE-434, CWE-400)\n\n❌ Common Mistakes:\n• Trusting client-provided MIME types\n• No file size limits (DoS via large files)\n• Storing uploaded files in web-accessible directories\n• Not validating file extensions\n• Executing uploaded files\n• Missing virus/malware scanning\n\n✅ Required Practices:\n• Validate file type by content (magic bytes), not extension\n• Enforce strict file size limits\n• Store uploads outside webroot or in object storage (S3)\n• Generate random filenames (prevent path traversal)\n• Set restrictive file permissions (no execute)\n• Scan files for malware (ClamAV, cloud services)\n• Implement Content Security Policy headers\n• Validate image dimensions (prevent zip bombs)\n\nPython/Django Example:\n```python\n# ❌ WRONG - Trusts file extension only\ndef handle_upload(file):\n    ext = file.name.split('.')[-1]\n    if ext in ['jpg', 'png']:  # Easily bypassed!\n        file.save(f'uploads/{file.name}')\n\n# ✅ CORRECT - Validates content type\nimport magic\nfrom django.core.files.storage import default_storage\n\ndef handle_upload(file):\n    # Check magic bytes\n    mime = magic.from_buffer(file.read(1024), mime=True)\n    file.seek(0)\n    \n    ALLOWED_TYPES = ['image/jpeg', 'image/png']\n    if mime not in ALLOWED_TYPES:\n        raise ValueError('Invalid file type')\n    \n    # Generate safe filename\n    import uuid\n    safe_name = f\"{uuid.uuid4()}.{mime.split('/')[-1]}\"\n    \n    # Store outside webroot\n    default_storage.save(f'private_uploads/{safe_name}', file)\n```\n\n📚 References:\n• https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html\n• https://cwe.mitre.org/data/definitions/434.html\n• https://cwe.mitre.org/data/definitions/400.html",
+      "references": [
+        "https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html",
+        "https://cwe.mitre.org/data/definitions/434.html",
+        "https://cwe.mitre.org/data/definitions/400.html"
+      ]
     },
     "api_endpoints": {
       "patterns": [
         "**/api/**",
         "**/routes/**",
-        "**/endpoints/**"
+        "**/endpoints/**",
+        "**/views/**",
+        "**/controllers/**"
       ],
-      "severity": "warning",
-      "guidance": "API endpoints should include proper input validation, rate limiting, authentication, and authorization checks."
+      "severity": "high",
+      "guidance": "🌐 API Security (CWE-306, CWE-770)\n\n❌ Common Mistakes:\n• Missing authentication on sensitive endpoints\n• No rate limiting (allows abuse/DoS)\n• Insufficient input validation\n• Exposing sensitive data in responses\n• Missing CORS configuration\n• Verbose error messages leaking info\n\n✅ Required Practices:\n• Authenticate ALL endpoints (except public ones)\n• Implement rate limiting (e.g., 100 req/min per IP)\n• Validate all inputs (type, format, range)\n• Use API keys or JWT tokens for auth\n• Implement proper CORS headers\n• Paginate large result sets\n• Return minimal data (don't expose internal IDs/fields)\n• Log security events (auth failures, rate limit hits)\n\nPython/Flask Example:\n```python\n# ❌ WRONG - No authentication or rate limiting\n@app.route('/api/users/<int:user_id>')\ndef get_user(user_id):\n    user = User.query.get(user_id)  # No auth check!\n    return jsonify(user.to_dict())  # Exposes everything!\n\n# ✅ CORRECT - With auth and rate limiting\nfrom flask_limiter import Limiter\nfrom functools import wraps\n\nlimiter = Limiter(app, key_func=lambda: request.remote_addr)\n\ndef require_auth(f):\n    @wraps(f)\n    def decorated(*args, **kwargs):\n        token = request.headers.get('Authorization')\n        if not token or not verify_token(token):\n            return jsonify({'error': 'Unauthorized'}), 401\n        return f(*args, **kwargs)\n    return decorated\n\n@app.route('/api/users/<int:user_id>')\n@require_auth\n@limiter.limit(\"100/minute\")\ndef get_user(user_id):\n    # Check authorization\n    if not current_user.can_view(user_id):\n        return jsonify({'error': 'Forbidden'}), 403\n    \n    user = User.query.get_or_404(user_id)\n    # Return only safe fields\n    return jsonify({\n        'id': user.public_id,\n        'username': user.username,\n        'created_at': user.created_at\n    })\n```\n\n📚 References:\n• https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html\n• https://cheatsheetseries.owasp.org/cheatsheets/API_Security_Cheat_Sheet.html\n• https://cwe.mitre.org/data/definitions/306.html\n• https://cwe.mitre.org/data/definitions/770.html",
+      "references": [
+        "https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html",
+        "https://cheatsheetseries.owasp.org/cheatsheets/API_Security_Cheat_Sheet.html",
+        "https://cwe.mitre.org/data/definitions/306.html",
+        "https://cwe.mitre.org/data/definitions/770.html"
+      ]
     },
     "user_input": {
       "patterns": [
         "**/forms/**",
         "**/input/**",
-        "**/validation/**"
+        "**/validation/**",
+        "**/sanitize/**",
+        "**/templates/**"
       ],
-      "severity": "warning",
-      "guidance": "All user input should be validated and sanitized to prevent injection attacks and XSS vulnerabilities."
+      "severity": "high",
+      "guidance": "🛡️ Input Validation (CWE-20, CWE-79, CWE-89)\n\n❌ Common Mistakes:\n• Client-side only validation (easily bypassed)\n• Blacklist filtering instead of whitelist\n• String concatenation in SQL/shell commands\n• Missing output encoding (XSS vulnerabilities)\n• Trusting user input without validation\n\n✅ Required Practices:\n• Validate ALL input server-side\n• Use whitelist validation (allow known-good only)\n• Use parameterized queries for SQL\n• Apply context-specific output encoding:\n  - HTML: escape <, >, &, \", '\n  - JavaScript: JSON.stringify() or proper escaping\n  - URL: URL encoding\n• Implement Content Security Policy (CSP)\n• Validate data types, length, format, range\n• Sanitize rich text with libraries (Bleach, DOMPurify)\n\nPython/Django Example:\n```python\n# ❌ WRONG - SQL injection\ndef search_users(query):\n    sql = f\"SELECT * FROM users WHERE name LIKE '%{query}%'\"\n    cursor.execute(sql)  # UNSAFE!\n\n# ✅ CORRECT - Parameterized query\ndef search_users(query):\n    sql = \"SELECT * FROM users WHERE name LIKE %s\"\n    cursor.execute(sql, [f'%{query}%'])  # Safe\n\n# ❌ WRONG - XSS vulnerability\ndef display_comment(comment):\n    return f\"<div>{comment}</div>\"  # Unescaped!\n\n# ✅ CORRECT - Django template auto-escaping\n# In template: {{ comment }}  (auto-escaped)\n# Or explicitly:\nfrom django.utils.html import escape\ndef display_comment(comment):\n    return f\"<div>{escape(comment)}</div>\"\n```\n\n📚 References:\n• https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html\n• https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html\n• https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html\n• https://cwe.mitre.org/data/definitions/20.html\n• https://cwe.mitre.org/data/definitions/79.html\n• https://cwe.mitre.org/data/definitions/89.html",
+      "references": [
+        "https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html",
+        "https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html",
+        "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html",
+        "https://cwe.mitre.org/data/definitions/20.html",
+        "https://cwe.mitre.org/data/definitions/79.html",
+        "https://cwe.mitre.org/data/definitions/89.html"
+      ]
     }
   },
   "label_patterns": {
     "security": {
       "severity": "critical",
-      "guidance": "Security-related changes require thorough review and testing. Follow security best practices and consider potential attack vectors."
+      "guidance": "🔒 Security-Related Changes\n\nSecurity changes require thorough review and testing:\n• Consider all potential attack vectors\n• Review OWASP Top 10 relevant categories\n• Test with security-focused test cases\n• Document security implications\n• Consider backwards compatibility and migration\n\nBefore submitting:\n✓ Run security linters (bandit, semgrep)\n✓ Check for hardcoded secrets\n✓ Verify input validation\n✓ Test authentication/authorization\n✓ Review error handling (no info leakage)\n\n📚 https://owasp.org/www-project-top-ten/"
     },
     "authentication": {
       "severity": "critical",
-      "guidance": "Authentication changes must follow security best practices including MFA support, secure session management, and protection against common attacks."
+      "guidance": "🔐 Authentication Changes\n\nAuthentication is critical security boundary:\n• Use industry-standard protocols (OAuth 2.0, OpenID Connect)\n• Implement MFA support\n• Follow OWASP Authentication Cheat Sheet\n• Test credential stuffing resistance\n• Verify session management security\n• Check rate limiting on auth endpoints\n\n📚 https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html"
     },
     "authorization": {
       "severity": "critical",
-      "guidance": "Authorization changes should implement proper access controls, follow the principle of least privilege, and prevent privilege escalation."
+      "guidance": "🚦 Authorization Changes\n\nAuthorization controls access to resources:\n• Follow principle of least privilege\n• Implement proper role-based access control (RBAC)\n• Test for privilege escalation vulnerabilities\n• Verify all authorization checks occur server-side\n• Check for insecure direct object references (IDOR)\n• Test horizontal and vertical privilege escalation\n\n📚 https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html"
     },
     "data-privacy": {
       "severity": "critical",
-      "guidance": "Ensure compliance with data privacy regulations (GDPR, CCPA, etc.). Implement proper data handling, encryption, and user consent mechanisms."
+      "guidance": "🔏 Data Privacy & Compliance\n\nEnsure compliance with privacy regulations:\n• GDPR (EU): Right to erasure, data portability, consent\n• CCPA (California): Consumer rights, opt-out mechanisms\n• Implement data minimization (collect only what's needed)\n• Encrypt PII at rest and in transit\n• Provide clear privacy policies\n• Implement audit logging for data access\n• Enable user data export/deletion\n\n📚 https://cheatsheetseries.owasp.org/cheatsheets/Privacy_Cheat_Sheet.html"
     },
     "api": {
-      "severity": "warning",
-      "guidance": "API changes should include proper input validation, rate limiting, versioning, and comprehensive documentation."
+      "severity": "high",
+      "guidance": "🌐 API Changes\n\nAPI security requirements:\n• Implement authentication (API keys, JWT, OAuth)\n• Add rate limiting (prevent abuse/DoS)\n• Validate all inputs (type, format, range)\n• Version your API properly\n• Document security requirements\n• Implement proper CORS configuration\n• Return appropriate HTTP status codes\n• Paginate large responses\n\n📚 https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html"
     },
     "vulnerability": {
       "severity": "critical",
-      "guidance": "Vulnerability fixes require careful testing and validation. Ensure the fix addresses the root cause and doesn't introduce new issues."
+      "guidance": "🐛 Vulnerability Fixes\n\nWhen fixing security vulnerabilities:\n• Verify the fix addresses root cause, not just symptoms\n• Add regression tests\n• Consider if vulnerability exists elsewhere in codebase\n• Document the vulnerability and fix (for future reference)\n• Check if CVE should be filed\n• Consider security advisory for users\n• Test that fix doesn't introduce new issues\n\n📚 https://cheatsheetseries.owasp.org/cheatsheets/Vulnerability_Disclosure_Cheat_Sheet.html"
     },
     "encryption": {
       "severity": "critical",
-      "guidance": "Encryption implementation should use industry-standard algorithms and proper key management. Avoid custom cryptography."
+      "guidance": "🔒 Encryption Implementation\n\nCryptography must use vetted algorithms:\n• Use established libraries (cryptography, NaCl, Bouncy Castle)\n• NEVER implement custom crypto\n• Use AES-256-GCM for symmetric encryption\n• Use RSA 2048+ or ECC P-256+ for asymmetric\n• Store keys securely (vaults, HSMs, not in code)\n• Use TLS 1.2+ for transport\n• Generate secure random: secrets (Python), crypto.randomBytes (Node)\n\n📚 https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html"
     },
     "dependencies": {
-      "severity": "warning",
-      "guidance": "Dependency updates should be reviewed for known vulnerabilities. Use tools like npm audit or pip-audit to check for security issues."
+      "severity": "high",
+      "guidance": "📦 Dependency Updates\n\nManage dependencies securely:\n• Check for known vulnerabilities (npm audit, pip-audit, snyk)\n• Review changelogs for security fixes\n• Pin exact versions in production\n• Use lock files (package-lock.json, Pipfile.lock)\n• Automate dependency updates (Dependabot, Renovate)\n• Verify package integrity (checksums, signatures)\n• Remove unused dependencies\n\nTools:\n• Python: pip-audit, safety\n• Node.js: npm audit, yarn audit\n• Ruby: bundle audit\n• Java: OWASP Dependency-Check\n\n📚 https://cheatsheetseries.owasp.org/cheatsheets/Vulnerable_Dependency_Management_Cheat_Sheet.html"
     }
   }
 }
