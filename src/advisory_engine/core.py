@@ -158,7 +158,7 @@ class AdvisoryEngine:
                 regex = regex.replace(r"\*\*/", "(.+/)?")   # leading **/
                 regex = regex.replace(r"/\*\*", "(/.*)?")   # trailing /**
                 regex = regex.replace(r"\*\*", ".*")         # bare **
-                regex = regex.replace(r"\*", "[^/]+")        # single-level *
+                regex = regex.replace(r"\*", "[^/]*")        # single-level *
                 if re.fullmatch(regex, normalized):
                     return True
             else:
