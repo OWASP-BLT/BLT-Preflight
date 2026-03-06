@@ -82,11 +82,13 @@
     },
     "file_upload": {
       "patterns": [
-        "**/*upload*",
-        "**/*file*",
-        "**/storage/**",
-        "**/media/**",
-        "**/attachments/**"
+    "**/upload*",
+    "**/uploads/**",
+    "**/storage/**",
+    "**/media/**",
+    "**/attachments/**",
+    "**/*file_upload*",
+    "**/*fileupload*"
       ],
       "severity": "high",
       "guidance": "📁 File Upload Security (CWE-434, CWE-400)\n\n❌ Common Mistakes:\n• Trusting client-provided MIME types\n• No file size limits (DoS via large files)\n• Storing uploaded files in web-accessible directories\n• Not validating file extensions\n• Executing uploaded files\n• Missing virus/malware scanning\n\n✅ Required Practices:\n• Validate file type by content (magic bytes), not extension\n• Enforce strict file size limits\n• Store uploads outside webroot or in object storage (S3)\n• Generate random filenames (prevent path traversal)\n• Set restrictive file permissions (no execute)\n• Scan files for malware (ClamAV, cloud services)\n• Implement Content Security Policy headers\n• Validate image dimensions (prevent zip bombs)\n\nPython/Django Example:\n```python\n# ❌ WRONG - Trusts file extension only\ndef handle_upload(file):\n    ext = file.name.split('.')[-1]\n    if ext in ['jpg', 'png']:  # Easily bypassed!\n        file.save(f'uploads/{file.name}')\n\n# ✅ CORRECT - Validates content type\nimport magic\nfrom django.core.files.storage import default_storage\n\ndef handle_upload(file):\n    # Check magic bytes\n    mime = magic.from_buffer(file.read(1024), mime=True)\n    file.seek(0)\n    \n    ALLOWED_TYPES = ['image/jpeg', 'image/png']\n    if mime not in ALLOWED_TYPES:\n        raise ValueError('Invalid file type')\n    \n    # Generate safe filename\n    import uuid\n    safe_name = f\"{uuid.uuid4()}.{mime.split('/')[-1]}\"\n    \n    # Store outside webroot\n    default_storage.save(f'private_uploads/{safe_name}', file)\n```\n\n📚 References:\n• https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html\n• https://cwe.mitre.org/data/definitions/434.html\n• https://cwe.mitre.org/data/definitions/400.html",
