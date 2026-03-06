@@ -5,7 +5,7 @@ Maintainer dashboard for viewing advisory statistics and feedback.
 import json
 import os
 from typing import Dict, List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from collections import Counter
 
 
@@ -26,7 +26,7 @@ class MaintainerDashboard:
     def generate_dashboard(self) -> str:
         """Generate maintainer dashboard report."""
         report = ["# 📊 BLT Preflight Maintainer Dashboard\n"]
-        report.append(f"*Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC*\n")
+        report.append(f"*Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC*\n")
         report.append("---\n")
         
         # Overview statistics
@@ -67,7 +67,7 @@ class MaintainerDashboard:
         ]
         
         # Recent activity (last 7 days)
-        recent_cutoff = datetime.utcnow() - timedelta(days=7)
+        recent_cutoff = datetime.now(timezone.utc) - timedelta(days=7)
         recent_feedback = [
             f for f in feedback 
             if datetime.fromisoformat(f.get("timestamp", "1970-01-01")) > recent_cutoff

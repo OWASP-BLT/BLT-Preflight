@@ -4,10 +4,12 @@ Core advisory engine that evaluates context and provides security guidance.
 
 import json
 import os
+import logging
 from typing import Dict, List, Optional, Any
-from dataclasses import dataclass, asdict
-from datetime import datetime
+from dataclasses import dataclass
+from datetime import datetime, timezone
 
+logger = logging.getLogger(__name__)
 
 @dataclass
 class AdvisoryContext:
@@ -28,6 +30,7 @@ class SecurityAdvice:
     documentation_links: List[str]
     recommendations: List[str]
     timestamp: str
+    pattern_key: str = ""
 
 
 class AdvisoryEngine:
@@ -39,10 +42,13 @@ class AdvisoryEngine:
         self.learning_data = self._load_learning_data()
     
     def _load_security_patterns(self) -> Dict:
-        """Load security patterns from configuration."""
+        """Load security patterns from configuration (safe)."""
         if os.path.exists(self.config_path):
-            with open(self.config_path, 'r') as f:
-                return json.load(f)
+            try:
+                with open(self.config_path, 'r') as f:
+                    return json.load(f)
+            except Exception as e:
+                logger.warning(f"Failed to load security patterns from {self.config_path}: {e}")
         return self._get_default_patterns()
     
     def _get_default_patterns(self) -> Dict:
@@ -91,16 +97,19 @@ class AdvisoryEngine:
         }
     
     def _load_learning_data(self) -> Dict:
-        """Load learning data from past patterns."""
+        """Load learning data from past patterns (safe)."""
         learning_path = "config/learning_data.json"
         if os.path.exists(learning_path):
-            with open(learning_path, 'r') as f:
-                return json.load(f)
-        return {"patterns": [], "feedback": []}
+            try:
+                with open(learning_path, 'r') as f:
+                    return json.load(f)
+            except Exception as e:
+                logger.warning(f"Failed to load learning data from {learning_path}: {e}")
+        return {"patterns": [], "feedback": [], "intents": []}
     
     def evaluate_context(self, context: AdvisoryContext) -> List[SecurityAdvice]:
-        """Evaluate context and generate security advice."""
-        advice_list = []
+        """Evaluate context and generate security advice (deduplicated)."""
+        advice_dict = {}  # key: (pattern_key, severity), value: SecurityAdvice
         
         # Evaluate based on issue labels
         for label in context.issue_labels:
@@ -110,7 +119,7 @@ class AdvisoryEngine:
                     advice = self._generate_advice_from_pattern(
                         pattern_key, pattern_data, "label", context
                     )
-                    advice_list.append(advice)
+                    advice_dict[(pattern_key, advice.severity)] = advice
         
         # Evaluate based on file patterns
         for file_path in context.file_patterns:
@@ -119,9 +128,10 @@ class AdvisoryEngine:
                     advice = self._generate_advice_from_pattern(
                         pattern_key, pattern_data, "file", context
                     )
-                    advice_list.append(advice)
+                    advice_dict[(pattern_key, advice.severity)] = advice
         
-        # Add general security advice
+        advice_list = list(advice_dict.values())
+        # Add general security advice if nothing matched
         if not advice_list:
             advice_list.append(self._get_general_advice(context))
         
@@ -157,7 +167,8 @@ class AdvisoryEngine:
             message=guidance,
             documentation_links=doc_links,
             recommendations=recommendations,
-            timestamp=datetime.utcnow().isoformat()
+            timestamp=datetime.now(timezone.utc).isoformat(),
+            pattern_key=pattern_key
         )
     
     def _get_general_advice(self, context: AdvisoryContext) -> SecurityAdvice:
@@ -177,7 +188,8 @@ class AdvisoryEngine:
                 "Verify authentication and authorization",
                 "Avoid hardcoding sensitive information"
             ],
-            timestamp=datetime.utcnow().isoformat()
+            timestamp=datetime.now(timezone.utc).isoformat(),
+            pattern_key="general"
         )
     
     def _get_recommendations(self, pattern_key: str, severity: str) -> List[str]:
@@ -255,34 +267,26 @@ class AdvisoryEngine:
         self, advice_list: List[SecurityAdvice], context: AdvisoryContext
     ) -> List[SecurityAdvice]:
         """Refine advice based on learning data."""
-        # Check if we have feedback patterns
         feedback = self.learning_data.get("feedback", [])
-        
         if feedback:
-            # Adjust severity or recommendations based on past feedback
             for advice in advice_list:
                 relevant_feedback = [
                     f for f in feedback 
-                    if f.get("pattern") == advice.title
+                    if f.get("pattern") == advice.pattern_key
                 ]
-                
                 if relevant_feedback:
-                    # Calculate average helpfulness
                     avg_helpful = sum(
                         f.get("helpful", 0) for f in relevant_feedback
                     ) / len(relevant_feedback)
-                    
-                    # If advice was not helpful, adjust it
                     if avg_helpful < 0.5:
                         advice.message += "\n\nNote: This guidance is being refined based on contributor feedback."
-        
         return advice_list
     
     def capture_intent(self, intent: str, context: AdvisoryContext) -> None:
         """Capture contributor intent for better guidance."""
         intent_data = {
             "intent": intent,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "context": {
                 "labels": context.issue_labels,
                 "files": context.file_patterns
@@ -293,15 +297,16 @@ class AdvisoryEngine:
         self.learning_data.setdefault("intents", []).append(intent_data)
         self._save_learning_data()
     
-    def record_feedback(self, advice_title: str, helpful: bool, comments: str = "") -> None:
-        """Record feedback on advice for learning loop."""
+    def record_feedback(self, pattern_key: str = None, helpful: bool = False, comments: str = "", advice_title: str = None) -> None:
+        """Record feedback on advice for learning loop. Accepts pattern_key (preferred) or advice_title (legacy)."""
+        # Backward compatibility: accept advice_title as alias for pattern_key
+        key = pattern_key if pattern_key is not None else advice_title
         feedback_data = {
-            "pattern": advice_title,
+            "pattern": key,
             "helpful": 1 if helpful else 0,
             "comments": comments,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
-        
         self.learning_data.setdefault("feedback", []).append(feedback_data)
         self._save_learning_data()
     
