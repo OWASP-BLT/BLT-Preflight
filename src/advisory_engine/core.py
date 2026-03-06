@@ -10,7 +10,7 @@ from dataclasses import dataclass, asdict
 from datetime import datetime
 
 
-`@dataclass`
+@dataclass
 class AdvisoryContext:
     """Context information for generating security advice."""
     issue_labels: List[str]
@@ -20,7 +20,7 @@ class AdvisoryContext:
     past_patterns: Optional[Dict[str, Any]] = None
 
 
-`@dataclass`
+@dataclass
 class SecurityAdvice:
     """Security advice generated for a contribution."""
     severity: str  # info, warning, high, critical
