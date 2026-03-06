@@ -4,10 +4,12 @@ Core advisory engine that evaluates context and provides security guidance.
 
 import json
 import os
+import logging
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
+logger = logging.getLogger(__name__)
 
 @dataclass
 class AdvisoryContext:
@@ -46,7 +48,7 @@ class AdvisoryEngine:
                 with open(self.config_path, 'r') as f:
                     return json.load(f)
             except Exception as e:
-                print(f"[WARN] Failed to load security patterns from {self.config_path}: {e}")
+                logger.warning(f"Failed to load security patterns from {self.config_path}: {e}")
         return self._get_default_patterns()
     
     def _get_default_patterns(self) -> Dict:
@@ -102,7 +104,7 @@ class AdvisoryEngine:
                 with open(learning_path, 'r') as f:
                     return json.load(f)
             except Exception as e:
-                print(f"[WARN] Failed to load learning data from {learning_path}: {e}")
+                logger.warning(f"Failed to load learning data from {learning_path}: {e}")
         return {"patterns": [], "feedback": [], "intents": []}
     
     def evaluate_context(self, context: AdvisoryContext) -> List[SecurityAdvice]:
