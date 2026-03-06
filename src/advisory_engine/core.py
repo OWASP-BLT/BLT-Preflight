@@ -4,12 +4,13 @@ Core advisory engine that evaluates context and provides security guidance.
 
 import json
 import os
+import re
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, asdict
 from datetime import datetime
 
 
-@dataclass
+`@dataclass`
 class AdvisoryContext:
     """Context information for generating security advice."""
     issue_labels: List[str]
@@ -19,10 +20,10 @@ class AdvisoryContext:
     past_patterns: Optional[Dict[str, Any]] = None
 
 
-@dataclass
+`@dataclass`
 class SecurityAdvice:
     """Security advice generated for a contribution."""
-    severity: str  # info, warning, critical
+    severity: str  # info, warning, high, critical
     title: str
     message: str
     documentation_links: List[str]
@@ -103,10 +104,13 @@ class AdvisoryEngine:
         advice_list = []
         
         # Evaluate based on issue labels
+        # FIX 2: Bidirectional matching + hyphen normalisation so that short labels
+        # like "auth" or "auth-flow" correctly match the "authentication" pattern key.
         for label in context.issue_labels:
-            label_lower = label.lower()
+            label_lower = label.lower().replace("-", "_")
             for pattern_key, pattern_data in self.security_patterns.get("label_patterns", {}).items():
-                if pattern_key in label_lower:
+                pattern_key_norm = pattern_key.replace("-", "_")
+                if pattern_key_norm in label_lower or label_lower in pattern_key_norm:
                     advice = self._generate_advice_from_pattern(
                         pattern_key, pattern_data, "label", context
                     )
@@ -131,11 +135,35 @@ class AdvisoryEngine:
         return advice_list
     
     def _matches_pattern(self, file_path: str, patterns: List[str]) -> bool:
-        """Check if file path matches any of the patterns."""
+        """Check if file path matches any of the patterns (supports ** globstar).
+
+        FIX 1: The previous implementation used fnmatch.fnmatch() which does NOT
+        understand '**' (globstar/recursive) syntax. All patterns like '**/auth/**'
+        would silently never match. This version translates globstar patterns to
+        equivalent regular expressions before matching.
+        """
         import fnmatch
+
+        # Normalize path separators to forward slashes
+        normalized = file_path.replace("\\", "/")
+
         for pattern in patterns:
-            if fnmatch.fnmatch(file_path, pattern):
-                return True
+            if "**" in pattern:
+                # Translate globstar pattern to a regex:
+                #   **/foo  → optional leading directories
+                #   foo/**  → optional trailing directories
+                #   **      → any path segment(s)
+                #   *       → any characters except '/'
+                regex = re.escape(pattern)
+                regex = regex.replace(r"\*\*/", "(.+/)?")   # leading **/
+                regex = regex.replace(r"/\*\*", "(/.*)?")   # trailing /**
+                regex = regex.replace(r"\*\*", ".*")         # bare **
+                regex = regex.replace(r"\*", "[^/]+")        # single-level *
+                if re.fullmatch(regex, normalized):
+                    return True
+            else:
+                if fnmatch.fnmatch(normalized, pattern):
+                    return True
         return False
     
     def _generate_advice_from_pattern(
@@ -148,8 +176,13 @@ class AdvisoryEngine:
         # Build recommendations
         recommendations = self._get_recommendations(pattern_key, severity)
         
-        # Get documentation links
-        doc_links = self._get_documentation_links(pattern_key)
+        # FIX 3: Prefer the 'references' array from the JSON pattern over the
+        # hardcoded fallback links, so the enriched OWASP links added to
+        # security_patterns.json are actually surfaced in the report.
+        doc_links = (
+            pattern_data.get("references")
+            or self._get_documentation_links(pattern_key)
+        )
         
         return SecurityAdvice(
             severity=severity,
@@ -222,7 +255,7 @@ class AdvisoryEngine:
         ])
     
     def _get_documentation_links(self, pattern_key: str) -> List[str]:
-        """Get documentation links for a pattern."""
+        """Get documentation links for a pattern (fallback when JSON references absent)."""
         docs = {
             "authentication": [
                 "https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html",
@@ -321,14 +354,22 @@ class AdvisoryEngine:
         report.append("This advisory system helps you understand security expectations before contributing.\n")
         report.append("---\n")
         
-        # Group by severity
+        # FIX 4: Group by all four supported severity levels (info, warning, high, critical).
+        # Previously "high" was not handled, causing those advisories to be silently dropped
+        # from the report even though the JSON patterns were correctly classified.
         critical = [a for a in advice_list if a.severity == "critical"]
+        high     = [a for a in advice_list if a.severity == "high"]
         warnings = [a for a in advice_list if a.severity == "warning"]
-        info = [a for a in advice_list if a.severity == "info"]
+        info     = [a for a in advice_list if a.severity == "info"]
         
         if critical:
             report.append("## 🔴 Critical Security Considerations\n")
             for advice in critical:
+                report.append(self._format_advice(advice))
+        
+        if high:
+            report.append("## 🟠 High Severity Security Considerations\n")
+            for advice in high:
                 report.append(self._format_advice(advice))
         
         if warnings:
